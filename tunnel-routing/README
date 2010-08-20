@@ -1,0 +1,86 @@
+scenario:
+This machine runs a vpn client (such as openvpn) to
+establish a connection to a remote network on 172.16.0.0/16,
+but the Internet-facing interface on this machine
+is on 172.16.0.0/x. Local workstations need
+to route through this machine to reach tunnel network.
+
+             172.16.0.0/16 (tunnel network)
+                  |
+            +-----+----+
+            |    vpn   |
+            +-----+----+
+                  | REMOTE_OUTER=10.8.1.42
+         +--------+
+         |
+         |     Internet
+         |  +-----+----+
+         |  |  router  |
+         |  +-----+----+
+         |        |
+         |   172.16.0.0/16 (frontend subnet)
+         |        |
+         +-----+  |
+          tun0 |  | eth1
+            +--+--+----+
+            |  this    |
+            | machine  |
+            +-----+----+
+                  | eth0 (INTERNAL)
+                  |
+             192.168.0.0/24
+                  |
+            +-----------+
+            |           |
+        +---+---+   +---+---+
+        |       |   |       | local workstations
+        +-------+   +-------+
+
+
+To work around this, do something like:
+
+----------------------------------------------------------
+1. assign a name to routing table 36
+
+   echo -e '36\tremote' >> /etc/iproute2/rt_tables
+
+----------------------------------------------------------
+2. Create /sbin/ifup-local and chmod 755:
+
+#!/bin/bash
+
+# facility gateway, outbound on eth1
+FACILITY_GW=172.16.0.1
+FACILITY_GW="$(ip ro sho table main | grep default | cut -d\  -f3)"
+
+# cert-specific gateway for openvpn
+SERVER_GW="$(ip addr show tun0 | grep -oh 'peer\ [0-9.]\+' | cut -d\  -f2)"
+
+if [ $1 == tun0 ]; then
+  ip route add default via $SERVER_GW dev tun0 table remote
+  ip rule add to $FACILITY_GW table main
+  ip rule add to 172.16.0.0/16 table remote
+  WARNING="Cluster $FACILITY_GW will be unavailable"
+  echo "ADDED policy-based routing per /sbin/ifup-local" >&2
+  echo $WARNING >&2
+  /usr/bin/logger -t ifup-local $WARNING
+fi
+
+----------------------------------------------------------
+3. Create /sbin/ifdown-local and chmod 755:
+
+#!/bin/bash
+
+# facility gateway, outbound on eth1
+FACILITY_GW=172.16.0.1
+FACILITY_GW="$(ip ro sho table main | grep default | cut -d\  -f3)"
+
+# cert-specific gateway for openvpn
+SERVER_GW="$(ip addr show tun0 | grep -oh 'peer\ [0-9.]\+' | cut -d\  -f2)"
+
+if [ $1 == tun0 ]; then
+  ip rule delete to $FACILITY_GW table main
+  ip rule delete to 172.16.0.0/16 table remote
+  ip route del default via $SERVER_GW dev tun0 table remote
+  echo "REMOVED policy-based routing per /sbin/ifdown-local" >&2
+fi

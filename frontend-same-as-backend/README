@@ -1,0 +1,25 @@
+scenario
+Ensure that all traffic coming in on INTERNAL interface
+is answered on INTERNAL interface. This is needed for 
+facilities where the eth1 interface subnet 
+conflicts with the backend subnets.
+
+             10.100.x.y/16 (frontend subnet)
+                  |
+                  | eth1
+            +-----+----+
+            |  this    |
+            | machine  |
+            +-----+----+
+                  | eth0 (INTERNAL)
+                  |
+             192.168.0.0/24
+                  |
+            +-----------+
+            |           |
+        +---+---+   +---+---+
+        |       |   |       |
+        +---+---+   +---+---+
+            |           |
+    10.100.1.0/24    10.100.2.0/24 (backend subnets)
+

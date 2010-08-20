@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# the outer interface of remote tunnel endpoint
+REMOTE_OUTER=10.8.1.42
+
+if [ $1 == tun0 ]; then
+  ip route add default via $REMOTE_OUTER dev tun0 table remote
+  ip rule add to 172.16.0.1 table main
+  ip rule add to 172.16.0.0/16 table remote
+  echo "ADDED policy-based routing per /sbin/ifup-local" >&2
+fi

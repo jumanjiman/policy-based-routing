@@ -1,0 +1,22 @@
+#!/bin/sh
+
+INTERNAL=eth0
+
+# see ifup-local for explanation and ascii art
+
+if [ "$1" = $INTERNAL ]; then
+  # eth0 is $INTERNAL interface
+
+  # Flush $INTERNAL routing table (see /etc/iproute2/rt_tables)
+  ip route flush table 200 
+
+  # Remove policy rules
+  for x in $(seq 1 20); do
+    SUBNET="10.100.$x.0/24"
+    ip rule del from 192.168.0.254 to $SUBNET table 200
+  done
+
+  logger -t "/sbin/ifdown-local" \
+      "Removed policy-based routing rules for $INTERNAL
+	
+fi

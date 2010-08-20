@@ -1,0 +1,84 @@
+#!/bin/sh
+
+INTERNAL=eth0
+
+if [ "$1" = $INTERNAL ]; then
+  # scenario
+  # Ensure that all traffic coming in on INTERNAL interface
+  # is answered on INTERNAL interface. This is needed for 
+  # facilities where the eth1 interface subnet 
+  # conflicts with the backend subnets.
+  #
+  #             10.100.x.y/16 (frontend subnet)
+  #                  |
+  #                  | eth1
+  #            +-----+----+
+  #            |  this    |
+  #            | machine  |
+  #            +-----+----+
+  #                  | eth0 (INTERNAL)
+  #                  |
+  #             192.168.0.0/24
+  #                  |
+  #            +-----------+
+  #            |           |
+  #        +---+---+   +---+---+
+  #        |       |   |       |
+  #        +---+---+   +---+---+
+  #            |           |
+  #    10.100.1.0/24    10.100.2.0/24 (backend subnets)
+  #
+
+  if ! $(grep -qs "200 INTERNAL" /etc/iproute2/rt_tables); then
+    # create a persistent routing table called INTERNAL
+    echo "updating /etc/iproute2/rt_tables" >&2
+    echo "200 INTERNAL" >> /etc/iproute2/rt_tables
+  fi
+
+  # Build a route to the gateway for each backend subnet
+  # and assign them to the INTERNAL table
+  for x in $(seq 1 20); do
+    SUBNET="10.100.$x.0/24"
+    ROUTER="192.168.0.$x"
+    ip route add $SUBNET via $ROUTER dev eth0 src 192.168.0.254 table 200 protocol static
+
+    # Tell the kernel that 
+    # outgoing traffic _from_ 192.168.0.254 to the backend subnet
+    # should use the INTERNAL routing table
+    # This allows the server to have the subnets accessible
+    # from both the front-end (eth1) and the backend (eth0)
+    RULE="from 192.168.0.254 to $SUBNET table 200"
+    ip rule show | grep -q "$RULE"
+    if [ $? -eq 0 ]; then
+      # rule was already there (but should not have been...see /sbin/ifdown-local)
+      {
+      echo "Rule was already present. This means you upped $INTERNAL twice "
+      echo "without bringing it down in between. Check the rule for correctness:"
+      echo "  $RULE"
+      echo
+      echo "See /sbin/ifup-local and /sbin/ifdown-local"
+      } >&2
+    else
+      ip rule add $RULE
+    fi
+  done
+
+  {
+  # alert admin that policy-based routing is in place
+  echo "To see your backend routes, run:"
+  echo "  ip route show table 200"
+  echo
+  echo "To see your rules, run:"
+  echo "  ip rule show"
+  } >&2
+
+  logger -t "/sbin/ifup-local: " \
+      "Added policy-based routing rules for INTERNAL"
+fi
+
+# add a default route to INTERNAL table
+DEFROUTE="$(ip route show | grep default)"
+if ! [ "x$DEFROUTE" = "x" ]; then
+  ip route show table 200 | grep -q "$DEFROUTE" 
+  [ $? -eq 0 ] || ip route add $DEFROUTE table 200
+fi

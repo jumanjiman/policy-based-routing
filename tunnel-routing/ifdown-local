@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# external IP of remote vpn device
+REMOTE_OUTER=10.8.1.42
+
+if [ $1 == tun0 ]; then
+  ip rule delete to 172.16.0.1 table main
+  ip rule delete to 172.16.0.0/16 table remote
+  ip route del default via $REMOTE_OUTER dev tun0 table remote
+  echo "REMOVED policy-based routing per /sbin/ifdown-local" >&2
+fi

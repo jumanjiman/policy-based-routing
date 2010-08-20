@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# this should be saved as /sbin/ifup-local with mode 755
+
+# add route for internal interface
+/sbin/ip route add table 100 scope link dev eth0
+for x in $(seq 3 20); do
+  /sbin/ip rule add to 192.168.0.$x table 100
+done
+
+# add route for external interface
+/sbin/ip route add table 101 scope link dev eth1
+/sbin/ip rule add to 192.168.0.1 table 101

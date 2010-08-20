@@ -1,0 +1,9 @@
+== Policy-Based Routing in Linux ==
+
+These examples use advanced routing techniques
+to solve real-world routing challenges in Linux.
+Each scenario is in a separate directory with a README.
+
+RHEL supports `rule-$dev` files in 
+`/etc/sysconfig/network-scripts`, but these examples
+use `/sbin/ifup-local` to do various loops.

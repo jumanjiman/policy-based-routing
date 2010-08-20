@@ -1,0 +1,6 @@
+#!/bin/bash
+
+/sbin/ip rule delete to 192.168.0.1 table 101
+for x in $(seq 3 20); do
+  /sbin/ip rule delete to 192.168.0.$x table 100
+done
