@@ -60,7 +60,110 @@ done
 
 ==== Third-party docs ====
 
-A really good reference is available
+A really good tutorial is available
 as a free (as in beer) download at 
 http://www.policyrouting.org/PolicyRoutingBook[]
+
+=== Rules without routes ===
+
+This is a quick example of using rules 'without'
+an extra routing table. Technically it's not
+policy-based routing, but it's based on similar principles.
+
+Suppose you want to block access to Facebook
+and don't want to use NetFilter or other mechanisms.
+
+. Find the current IP addresses
++
+----
+$ dig +short facebook.com
+69.63.189.16
+69.63.181.11
+69.63.181.12
+69.63.189.11
+----
+
+. Find the netmask
++
+----
+$ ipcalc -m 69.63.189.16
+NETMASK=255.0.0.0
+----
+
+. Add a rule on-the-fly
++
+----
+$ sudo /sbin/ip rule add to 69.0.0.0/8 unreachable
+----
+
+. Test that it's effective
++
+----
+$ ping facebook.com
+connect: Network is unreachable
+----
+
+
+If faced with that scenario, how would you troubleshoot?
+
+. Show the normal routing table(s)
++
+----
+$ /sbin/ip route show
+209.132.183.53 via 172.21.13.1 dev eth0  proto static 
+172.21.13.0/24 dev eth0  proto kernel  scope link  src 172.21.13.20
+metric 1 
+192.168.122.0/24 dev virbr0  proto kernel  scope link  src 192.168.122.1 
+10.3.224.0/20 dev tun0  proto kernel  scope link  src 10.3.225.96 
+172.16.0.0/16 dev tun0  proto static  scope link 
+10.0.0.0/8 dev tun0  proto static  scope link 
+default via 172.21.13.1 dev eth0  proto static 
+----
+
+. But I have a default gateway! WTF?!
+.. Ah, but bring out the real net-foo:
++
+----
+$ /sbin/ip route get 69.63.189.16
+RTNETLINK answers: Network is unreachable
+----
+
+.. Show the rules
++
+----
+$ /sbin/ip rule show
+0:	from all lookup local 
+32765:	from all to 69.0.0.0/8 unreachable
+32766:	from all lookup main 
+32767:	from all lookup default 
+----
++
+NOTE: New rules are added *before* the existing main and default
+tables.
+
+You can even persist these in RHEL:
+
+----
+$ cd /etc/sysconfig/network-scripts/
+$ grep -i 'ip rule' *
+ifdown-routes:	       /sbin/ip rule del $line
+ifup-routes:	       /sbin/ip rule add $line
+----
+
+Closer inspection of those two scripts reveals that you can
+create `rule-<ifname>` files. The relevant line from `ifup-routes` is:
+
+----
+FILES="/etc/sysconfig/network-scripts/rule-$1"
+----
+
+In a real-world scenario, you'd probably want to use the `ip` command
+to create a table, then rules to direct various combos of 
+source and destination into that table to annoy your users...
+scratch that...protect your assets.
+
+Now, if you want to get fancy...you can combine FWMARK with ip rules
+to target specific source and destination combinations. IP rules will
+also get you out of a jam in those scenarios where a facility
+is using the same IP subnet that you use for your private backend network.
 
