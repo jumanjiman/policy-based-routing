@@ -1,5 +1,7 @@
 == Policy-Based Routing in Linux ==
 
+=== Goals ===
+
 These examples use advanced routing techniques
 to solve real-world routing challenges in Linux.
 Each scenario is in a separate directory with a README.
@@ -7,3 +9,58 @@ Each scenario is in a separate directory with a README.
 RHEL supports `rule-$dev` files in 
 `/etc/sysconfig/network-scripts`, but these examples
 use `/sbin/ifup-local` to do various loops.
+
+=== Troubleshooting routes ===
+
+. To get the route to an IP, use `ip route get`
++
+----
+/sbin/ip route get 1.2.3.4
+----
++
+The above command may show output similar to:
++
+----
+1.2.3.4 via 10.0.1.1 dev wlan0  src 10.0.1.202 
+    cache  mtu 1500 advmss 1460 hoplimit 64
+----
++
+The output shows the next hop (`10.0.1.1`), the
+outbound interface (`wlan0`), and the default source IP
+for packets (`10.0.1.202`).
+
+. If you see something you don't expect, 
+try these other commands:
++
+* `ip rule show`
+* `ip route show table all`
+* `ip address show <device>`
+* `ip link show`
+* `ip link show up`
+* `ip help`
+
+TIP: Avoid the `ifconfig` command since it works only
+on labelled interfaces.
+
+TIP: Avoid the `route` command.
+
+=== Additional resources ===
+
+==== System docs ====
+
+Policy routing is documented in `/usr/share/doc/iproute-*`, but you'll
+have to make pdf's from the ps files.
+
+----
+cd /usr/share/doc/iproute-*
+for file in $(ls *.ps); do
+  ps2pdf $file
+done
+----
+
+==== Third-party docs ====
+
+A really good reference is available
+as a free (as in beer) download at 
+http://www.policyrouting.org/PolicyRoutingBook[]
+
