@@ -95,6 +95,8 @@ NETMASK=255.0.0.0
 ----
 $ sudo /sbin/ip rule add to 69.0.0.0/8 unreachable
 ----
++
+NOTE: Yes, this is sloppy and excludes other hosts.
 
 . Test that it's effective
 +
