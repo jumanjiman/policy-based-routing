@@ -1,0 +1,2 @@
+from 10.2.89.81/32 table ntp
+to 10.2.89.81/32 table ntp

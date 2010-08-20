@@ -1,0 +1,32 @@
+
+== Special NTP Route ==
+
+For whatever reason, a host needs a special route
+to reach its upstream NTP server. Perhaps this conflicts
+with the 'normal' routing tables on the host.
+
+.Procedure
+
+. Create `/etc/iproute2/rt_tables` as:
++
+----
+include::rt_tables[]
+----
+
+. Create `/etc/sysconfig/network-scripts/route-eth1` as:
++
+----
+include::route-eth1[]
+----
+
+. Create `/etc/sysconfig/network-scripts/rule-eth1` as:
++
+----
+include::rule-eth1[]
+----
+
+. Bounce `eth1`
++
+----
+ifdown eth1; ifup eth1
+----
