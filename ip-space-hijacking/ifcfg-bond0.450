@@ -1,0 +1,6 @@
+BOOTPROTO=static
+DEVICE=bond0.450
+IPADDR=207.231.196.5
+NETMASK=255.255.255.192
+# tagged vlan
+VLAN=yes

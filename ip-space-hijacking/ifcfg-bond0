@@ -1,0 +1,7 @@
+BONDING_OPTS="miimon=100 mode=1 primary=eth0"
+BOOTPROTO=static
+DEVICE=bond0
+# management interface
+IPADDR=11.3.20.51
+NETMASK=255.255.255.0
+ONBOOT=yes

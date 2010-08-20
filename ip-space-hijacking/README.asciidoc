@@ -1,0 +1,103 @@
+== IP number-space hijacking ==
+
+=== Challenge ===
+
+In this scenario, a network hijacked public IP
+space for its internal network, but must provide
+services via `bond0.450` to customers with real
+public IP addresses. 
+
+The trick with policy-based routing is that
+responses to any request coming from the real public IP space
+must be returned via `bond0.450`.
+
+.Diagram
+----
+           hijacked public ip spaces
+               ^  ^
+               |  |
+           ib0 |  | ib1
+            +--+--+----+           +----------+
+            |  this    |           | public   |
+            | machine  |           | ip space |
+            +-+------+-+           +-----+----+
+         eth0 |      | eth1              |
+              +-+--+-+                   |
+          bond0 |  | bond0.450      +----+----+
+                |  |                |         |
+                |  +----------------+ router  |
+                |                   |         |
+                |                   +---------+
+                |
+            +---+---+ default gateway
+            |router | with hijacked public ip space
+            +-------+
+----
+
+In the above diagram, the IPs are:
+
+----
+$ ip -4 addr sho
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 16436 qdisc noqueue 
+    inet 127.0.0.1/8 scope host lo
+4: ib0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 2044 qdisc pfifo_fast qlen 256
+    inet 11.3.252.165/23 brd 11.3.253.255 scope global ib0
+5: ib1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 2044 qdisc pfifo_fast qlen 256
+    inet 11.3.254.165/23 brd 11.3.255.255 scope global ib1
+6: bond0: <BROADCAST,MULTICAST,MASTER,UP,LOWER_UP> mtu 1500 qdisc noqueue 
+    inet 11.3.20.51/24 brd 11.3.20.255 scope global bond0
+10: bond0.450@bond0: <BROADCAST,MULTICAST,MASTER,UP,LOWER_UP> mtu 1500 qdisc noqueue 
+    inet 207.231.196.5/26 brd 207.231.196.63 scope global bond0.450
+----
+
+The 'normal' routing table looks like:
+
+----
+$ ip route
+207.231.196.0/26 dev bond0.450  proto kernel  scope link  src 207.231.196.5 
+11.3.20.0/24 dev bond0  proto kernel  scope link  src 11.3.20.51 
+11.3.252.0/23 dev ib0  proto kernel  scope link  src 11.3.252.165 
+11.3.254.0/23 dev ib1  proto kernel  scope link  src 11.3.254.165 
+default via 11.3.20.1 dev bond0 
+----
+
+=== Solution ===
+
+An IP rule is the basis for the policy:
+
+----
+$ ip rule show
+0:	from all lookup 255 
+32765:	from 207.231.196.5 lookup vlan450 
+32766:	from all lookup main 
+32767:	from all lookup default 
+----
+
+The new routing table is:
+
+----
+$ ip route show table vlan450
+207.231.196.0/26 via 207.231.196.5 dev bond0.450 
+default via 207.231.196.1 dev bond0.450
+----
+
+`/etc/iproute2/rt_tables` contains:
+
+----
+#
+# reserved values
+#
+255	local
+254	main
+253	default
+0	unspec
+#
+# local
+#
+#1	inr.ruhep
+50 vlan450
+----
+
+NOTE: The platform is Red Hat Enterprise Linux Server release 5.4 (Tikanga) 
+running kernel `2.6.24.7-139.el5rt`.
+
